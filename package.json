@@ -8,7 +8,8 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "update-data": "node scripts/fetch-f1-data.js"
+    "update-data": "node scripts/fetch-f1-data.js",
+    "download-images": "node scripts/download-images.js"
   },
   "dependencies": {
     "@nivo/bump": "^0.99.0",

@@ -144,8 +144,10 @@ const StandingsChart = ({ data, races, scale = 'rank', useLogScale = false }) =>
       // Try Firstname_Lastname first, then fallback to just Lastname
       const nameSlug = givenName ? `${givenName}_${familyName}` : familyName;
       
-      const imageUrl = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2025Drivers/${nameSlug}.png`;
-      const fallbackUrl = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2024Drivers/${nameSlug}.png`;
+      // Use local images
+      // Note: Vite serves files in 'public' at the root path
+      const imageUrl = `/drivers/${nameSlug}.png`;
+      const fallbackUrl = `/drivers/${familyName}.png`;
 
       const size = 40;
       const offset = 45;
@@ -304,7 +306,7 @@ const StandingsChart = ({ data, races, scale = 'rank', useLogScale = false }) =>
             const familyName = serie.meta?.familyName ? (serie.meta.familyName.charAt(0).toUpperCase() + serie.meta.familyName.slice(1).toLowerCase()) : '';
             const givenName = serie.meta?.givenName ? (serie.meta.givenName.charAt(0).toUpperCase() + serie.meta.givenName.slice(1).toLowerCase()) : '';
             const nameSlug = givenName ? `${givenName}_${familyName}` : familyName;
-            const imageUrl = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2025Drivers/${nameSlug}.png`;
+            const imageUrl = `/drivers/${nameSlug}.png`;
             
             return (
               <div className="bg-slate-900 p-3 border border-slate-700 rounded shadow-xl text-xs flex items-center gap-3">
@@ -315,7 +317,7 @@ const StandingsChart = ({ data, races, scale = 'rank', useLogScale = false }) =>
                       alt={serie.id} 
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        e.target.src = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2024Drivers/${nameSlug}.png`;
+                        e.target.src = `/drivers/${familyName}.png`;
                       }}
                     />
                   </div>
@@ -412,7 +414,7 @@ const StandingsChart = ({ data, races, scale = 'rank', useLogScale = false }) =>
             const familyName = serie?.meta?.familyName ? (serie.meta.familyName.charAt(0).toUpperCase() + serie.meta.familyName.slice(1).toLowerCase()) : '';
             const givenName = serie?.meta?.givenName ? (serie.meta.givenName.charAt(0).toUpperCase() + serie.meta.givenName.slice(1).toLowerCase()) : '';
             const nameSlug = givenName ? `${givenName}_${familyName}` : familyName;
-            const imageUrl = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2025Drivers/${nameSlug}.png`;
+            const imageUrl = `/drivers/${nameSlug}.png`;
             
             return (
               <div className="bg-slate-900 p-3 border border-slate-700 rounded shadow-xl text-xs flex items-center gap-3">
@@ -423,7 +425,7 @@ const StandingsChart = ({ data, races, scale = 'rank', useLogScale = false }) =>
                       alt={serie.id} 
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        e.target.src = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2024Drivers/${nameSlug}.png`;
+                        e.target.src = `/drivers/${familyName}.png`;
                       }}
                     />
                   </div>
