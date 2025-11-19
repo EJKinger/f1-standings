@@ -81,18 +81,32 @@ const StandingsChart = ({ data, races, scale = 'rank', useLogScale = false }) =>
   const HeadshotLayer = ({ series, xScale, yScale }) => {
     return series.map(serie => {
       const points = serie.data;
-      if (!points || points.length === 0) return null;
+      // Ensure points is an array before filtering
+      if (!Array.isArray(points) || points.length === 0) return null;
 
-      const validPoints = points.filter(p => p.data.y !== null);
+      // Helper to get data values regardless of chart type (Bump vs Line)
+      const getPointData = (p) => p.data || p;
+
+      const validPoints = points.filter(p => {
+        const d = getPointData(p);
+        return d.y !== null && d.y !== undefined;
+      });
+      
       if (validPoints.length === 0) return null;
       
       const firstPoint = validPoints[0];
       const lastPoint = validPoints[validPoints.length - 1];
 
-      const startX = xScale(firstPoint.data.x);
-      const startY = yScale(firstPoint.data.y);
-      const endX = xScale(lastPoint.data.x);
-      const endY = yScale(lastPoint.data.y);
+      // Get X and Y values for scaling
+      // For Bump chart, p.data.x/y are the values.
+      // For Line chart, p.x/y are the values (if passed as original data)
+      const firstData = getPointData(firstPoint);
+      const lastData = getPointData(lastPoint);
+
+      const startX = xScale(firstData.x);
+      const startY = yScale(firstData.y);
+      const endX = xScale(lastData.x);
+      const endY = yScale(lastData.y);
 
       // Constructor Logic (No familyName in meta)
       if (!serie.meta?.familyName) {
