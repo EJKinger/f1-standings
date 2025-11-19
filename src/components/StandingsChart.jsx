@@ -81,13 +81,6 @@ const StandingsChart = ({ data, races, scale = 'rank' }) => {
 
   const HeadshotLayer = ({ series, xScale, yScale }) => {
     return series.map(serie => {
-      if (!serie.meta?.familyName) return null;
-      
-      // Fix casing for F1 media URLs (Title Case required: "Verstappen", not "verstappen")
-      const familyName = serie.meta.familyName.charAt(0).toUpperCase() + serie.meta.familyName.slice(1).toLowerCase();
-      const imageUrl = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2025Drivers/${familyName}.png`;
-      const fallbackUrl = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2024Drivers/${familyName}.png`;
-
       const points = serie.data;
       if (!points || points.length === 0) return null;
 
@@ -101,6 +94,39 @@ const StandingsChart = ({ data, races, scale = 'rank' }) => {
       const startY = yScale(firstPoint.data.y);
       const endX = xScale(lastPoint.data.x);
       const endY = yScale(lastPoint.data.y);
+
+      // Constructor Logic (No familyName in meta)
+      if (!serie.meta?.familyName) {
+        const ConstructorLabel = ({ x, y, align = 'left' }) => (
+          <text
+            x={align === 'left' ? x - 10 : x + 10}
+            y={y}
+            textAnchor={align === 'left' ? 'end' : 'start'}
+            dominantBaseline="central"
+            style={{ 
+              fill: serie.color, 
+              fontSize: '12px', 
+              fontWeight: 'bold',
+              fontFamily: 'monospace'
+            }}
+          >
+            {serie.id}
+          </text>
+        );
+
+        return (
+          <g key={serie.id}>
+            <ConstructorLabel x={startX} y={startY} align="left" />
+            <ConstructorLabel x={endX} y={endY} align="right" />
+          </g>
+        );
+      }
+      
+      // Driver Logic
+      // Fix casing for F1 media URLs (Title Case required: "Verstappen", not "verstappen")
+      const familyName = serie.meta.familyName.charAt(0).toUpperCase() + serie.meta.familyName.slice(1).toLowerCase();
+      const imageUrl = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2025Drivers/${familyName}.png`;
+      const fallbackUrl = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2024Drivers/${familyName}.png`;
 
       const size = 40;
       const offset = 45;
