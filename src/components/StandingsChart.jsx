@@ -77,6 +77,8 @@ const StandingsChart = ({ data, races, scale = 'rank' }) => {
     }
   };
 
+  const [hoveredDriver, setHoveredDriver] = useState(null);
+
   const HeadshotLayer = ({ series, xScale, yScale }) => {
     return series.map(serie => {
       if (!serie.meta?.familyName) return null;
@@ -100,21 +102,39 @@ const StandingsChart = ({ data, races, scale = 'rank' }) => {
       const endX = xScale(lastPoint.data.x);
       const endY = yScale(lastPoint.data.y);
 
-      const size = 40; // Increased from 24
-      const offset = 45; // Increased offset to accommodate larger size and text
+      const size = 40;
+      const offset = 45;
+
+      const handleDriverHover = (e, x, y, align) => {
+        const rect = e.target.getBoundingClientRect();
+        setHoveredDriver({
+          id: serie.id,
+          imageUrl,
+          fallbackUrl,
+          color: serie.color,
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+          align
+        });
+      };
 
       const DriverImage = ({ x, y, align = 'left' }) => (
         <foreignObject 
           x={align === 'left' ? x - offset - size : x + offset} 
           y={y - size / 2} 
-          width={size + 60} // Extra width for hover expansion and text
-          height={size + 60} // Extra height for hover expansion
+          width={size + 60} 
+          height={size}
           style={{ overflow: 'visible' }}
         >
-          <div className="flex items-center gap-2 group" style={{ flexDirection: align === 'left' ? 'row' : 'row-reverse' }}>
+          <div 
+            className="flex items-center gap-2 cursor-pointer" 
+            style={{ flexDirection: align === 'left' ? 'row' : 'row-reverse' }}
+            onMouseEnter={(e) => handleDriverHover(e, x, y, align)}
+            onMouseLeave={() => setHoveredDriver(null)}
+          >
             <div className="relative">
               <div 
-                className="w-10 h-10 rounded-full overflow-hidden bg-slate-800 border-2 transition-all duration-300 ease-out group-hover:w-20 group-hover:h-20 group-hover:-translate-y-5 group-hover:z-50 group-hover:shadow-xl group-hover:border-4"
+                className="w-10 h-10 rounded-full overflow-hidden bg-slate-800 border-2 transition-all"
                 style={{ borderColor: serie.color }}
               >
                 <img 
@@ -147,6 +167,28 @@ const StandingsChart = ({ data, races, scale = 'rank' }) => {
           style={{ left: hoveredRace.x, top: hoveredRace.y }}
         >
           {hoveredRace.name}
+        </div>
+      )}
+
+      {hoveredDriver && (
+        <div
+          className="fixed z-50 pointer-events-none transform -translate-x-1/2 -translate-y-1/2"
+          style={{ left: hoveredDriver.x, top: hoveredDriver.y }}
+        >
+           <div className="flex items-center gap-2" style={{ flexDirection: hoveredDriver.align === 'left' ? 'row' : 'row-reverse' }}>
+            <div 
+              className="w-20 h-20 rounded-full overflow-hidden bg-slate-800 border-4 shadow-2xl"
+              style={{ borderColor: hoveredDriver.color }}
+            >
+              <img 
+                src={hoveredDriver.imageUrl} 
+                alt={hoveredDriver.id} 
+                className="w-full h-full object-cover"
+                onError={(e) => e.target.src = hoveredDriver.fallbackUrl}
+              />
+            </div>
+            <span className="font-bold text-lg text-white font-mono shadow-black drop-shadow-md">{hoveredDriver.id}</span>
+          </div>
         </div>
       )}
       
