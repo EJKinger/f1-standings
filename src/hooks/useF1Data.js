@@ -1,17 +1,24 @@
 import { useQuery } from '@tanstack/react-query';
 import { getSchedule, getStandingsForRound } from '../api/client';
+import standingsCache from '../data/standings-cache.json';
 
 export const useSeasonStandings = (year, type = 'driver') => {
   return useQuery({
     queryKey: ['seasonStandings', year, type],
     queryFn: async () => {
       // 1. Get Schedule
-      const schedule = await getSchedule(year);
+      // Try to get schedule from cache first if available for that year
+      let schedule = standingsCache[year]?.schedule;
       
+      // If not in cache or we want to ensure we have latest race times for current year, fetch it
+      // For past years, cache is fine. For current year, we might want fresh schedule in case of changes?
+      // But user asked to "only hit the api for future races".
+      // So if we have it in cache, use it.
+      if (!schedule || schedule.length === 0) {
+         schedule = await getSchedule(year);
+      }
+
       // Filter for completed races.
-      // If we are in the future relative to the race, it should be completed.
-      // However, sometimes the API might not have results yet even if the date passed.
-      // We'll try to fetch all races that have passed.
       const now = new Date();
       const completedRaces = schedule.filter(race => {
         const raceDate = new Date(`${race.date}T${race.time || '00:00:00'}`);
@@ -19,19 +26,40 @@ export const useSeasonStandings = (year, type = 'driver') => {
       });
 
       // 2. Fetch standings for each completed round
-      const standingsPromises = completedRaces.map(race => 
-        getStandingsForRound(year, race.round, type)
-          .then(data => ({
+      const standingsPromises = completedRaces.map(async (race) => {
+        const round = race.round;
+        
+        // Check cache first
+        const cachedYear = standingsCache[year];
+        if (cachedYear) {
+          const cachedStandings = type === 'driver' 
+            ? cachedYear.driverStandings[round] 
+            : cachedYear.constructorStandings[round];
+            
+          if (cachedStandings) {
+            return {
+              round: race.round,
+              raceName: race.raceName,
+              circuitId: race.Circuit.circuitId,
+              standings: type === 'driver' ? (cachedStandings.DriverStandings || []) : (cachedStandings.ConstructorStandings || [])
+            };
+          }
+        }
+
+        // If not in cache, fetch from API
+        try {
+          const data = await getStandingsForRound(year, race.round, type);
+          return {
             round: race.round,
             raceName: race.raceName,
             circuitId: race.Circuit.circuitId,
             standings: type === 'driver' ? (data?.DriverStandings || []) : (data?.ConstructorStandings || [])
-          }))
-          .catch(err => {
-            console.warn(`Failed to fetch standings for round ${race.round}`, err);
-            return null;
-          })
-      );
+          };
+        } catch (err) {
+          console.warn(`Failed to fetch standings for round ${race.round}`, err);
+          return null;
+        }
+      });
 
       const roundsData = await Promise.all(standingsPromises);
       const validRounds = roundsData.filter(r => r !== null && r.standings.length > 0);
@@ -41,32 +69,6 @@ export const useSeasonStandings = (year, type = 'driver') => {
       const standingsLookup = new Map(); // Map<RoundNumber, Map<EntityId, Standing>>
       const allEntities = new Map(); // Map<EntityId, EntityInfo>
 
-      // Fetch driver images from OpenF1 if type is driver
-      let driverImages = new Map();
-      if (type === 'driver') {
-        try {
-          // Fetch drivers from OpenF1 for the current/recent session to get headshots
-          // We can't easily filter by year in OpenF1 drivers endpoint without a session key.
-          // But we can try to fetch a list and match by driver number or name.
-          // Actually, OpenF1 is great but might be overkill to fetch for every request.
-          // Let's try a static list or a known public CDN if possible.
-          // But since we are here, let's try to fetch from a known OpenF1 session if possible, or just use the static pattern with better error handling.
-          // Alternatively, use a different source.
-          // Let's stick to the static pattern but fix the casing.
-          // The user said "I don't see the images".
-          // Let's try to use a different, more reliable source or just fix the casing.
-          // Actually, let's try to fetch from OpenF1 for a recent session (e.g. latest race of the year).
-          // We have the schedule. Let's pick the last completed race.
-          
-          if (validRounds.length > 0) {
-             // This is getting complicated to fetch session keys.
-             // Let's try to use the static URL with lowercase.
-          }
-        } catch (e) {
-          console.warn("Failed to fetch driver images", e);
-        }
-      }
-      
       validRounds.forEach(roundData => {
         const roundNum = parseInt(roundData.round);
         if (!standingsLookup.has(roundNum)) {
