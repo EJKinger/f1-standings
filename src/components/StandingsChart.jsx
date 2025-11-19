@@ -79,89 +79,61 @@ const StandingsChart = ({ data, races, scale = 'rank' }) => {
 
   const HeadshotLayer = ({ series, xScale, yScale }) => {
     return series.map(serie => {
-      // Only show for drivers if we have meta
-      // Note: Nivo Line passes 'serie' slightly differently than Bump, check structure
-      // For Line: serie.data is the array of points.
-      // For Bump: same.
-      // But we need access to the original 'meta' property.
-      // In Nivo Line, extra props on the series object are passed through.
-      
       if (!serie.meta?.familyName) return null;
       
-      const familyName = serie.meta.familyName.toLowerCase();
+      // Fix casing for F1 media URLs (Title Case required: "Verstappen", not "verstappen")
+      const familyName = serie.meta.familyName.charAt(0).toUpperCase() + serie.meta.familyName.slice(1).toLowerCase();
       const imageUrl = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2025Drivers/${familyName}.png`;
       const fallbackUrl = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2024Drivers/${familyName}.png`;
 
-      // Get start and end points
-      // For Line chart, we need to find the coordinates.
-      // series is an array of { id, data: [{x, y, data: {originalData}}] }
-      // Wait, in custom layer for Line, 'series' contains computed x,y coordinates.
-      
-      const points = serie.data; // Array of { x, y, data }
+      const points = serie.data;
       if (!points || points.length === 0) return null;
 
-      // Filter points that have a valid y value (not null)
       const validPoints = points.filter(p => p.data.y !== null);
       if (validPoints.length === 0) return null;
       
       const firstPoint = validPoints[0];
       const lastPoint = validPoints[validPoints.length - 1];
 
-      // Calculate coordinates using scales to be safe
-      // Nivo Line points in custom layers usually have x,y as coordinates, but let's ensure we get the right values
-      // We use the original data x/y and the scales
-      
       const startX = xScale(firstPoint.data.x);
       const startY = yScale(firstPoint.data.y);
       const endX = xScale(lastPoint.data.x);
       const endY = yScale(lastPoint.data.y);
 
-      const size = 24;
-      const offset = 30;
+      const size = 40; // Increased from 24
+      const offset = 45; // Increased offset to accommodate larger size and text
+
+      const DriverImage = ({ x, y, align = 'left' }) => (
+        <foreignObject 
+          x={align === 'left' ? x - offset - size : x + offset} 
+          y={y - size / 2} 
+          width={size + 60} // Extra width for hover expansion and text
+          height={size + 60} // Extra height for hover expansion
+          style={{ overflow: 'visible' }}
+        >
+          <div className="flex items-center gap-2 group" style={{ flexDirection: align === 'left' ? 'row' : 'row-reverse' }}>
+            <div className="relative">
+              <div 
+                className="w-10 h-10 rounded-full overflow-hidden bg-slate-800 border-2 transition-all duration-300 ease-out group-hover:w-20 group-hover:h-20 group-hover:-translate-y-5 group-hover:z-50 group-hover:shadow-xl group-hover:border-4"
+                style={{ borderColor: serie.color }}
+              >
+                <img 
+                  src={imageUrl} 
+                  alt={serie.id} 
+                  className="w-full h-full object-cover"
+                  onError={(e) => e.target.src = fallbackUrl}
+                />
+              </div>
+            </div>
+            <span className="font-bold text-sm text-slate-300 font-mono">{serie.id}</span>
+          </div>
+        </foreignObject>
+      );
 
       return (
         <g key={serie.id}>
-          {/* Start Image */}
-          <foreignObject 
-            x={startX - offset - size} 
-            y={startY - size / 2} 
-            width={size} 
-            height={size}
-            style={{ overflow: 'visible' }}
-          >
-            <div 
-              className="w-6 h-6 rounded-full overflow-hidden bg-slate-800 border-2"
-              style={{ borderColor: serie.color }}
-            >
-              <img 
-                src={imageUrl} 
-                alt={serie.id} 
-                className="w-full h-full object-cover"
-                onError={(e) => e.target.src = fallbackUrl}
-              />
-            </div>
-          </foreignObject>
-
-          {/* End Image */}
-          <foreignObject 
-            x={endX + offset} 
-            y={endY - size / 2} 
-            width={size} 
-            height={size}
-            style={{ overflow: 'visible' }}
-          >
-            <div 
-              className="w-6 h-6 rounded-full overflow-hidden bg-slate-800 border-2"
-              style={{ borderColor: serie.color }}
-            >
-              <img 
-                src={imageUrl} 
-                alt={serie.id} 
-                className="w-full h-full object-cover"
-                onError={(e) => e.target.src = fallbackUrl}
-              />
-            </div>
-          </foreignObject>
+          <DriverImage x={startX} y={startY} align="left" />
+          <DriverImage x={endX} y={endY} align="right" />
         </g>
       );
     });
@@ -231,7 +203,7 @@ const StandingsChart = ({ data, races, scale = 'rank' }) => {
             HeadshotLayer
           ]}
           tooltip={({ serie }) => {
-            const familyName = serie.meta?.familyName ? serie.meta.familyName.toLowerCase() : '';
+            const familyName = serie.meta?.familyName ? (serie.meta.familyName.charAt(0).toUpperCase() + serie.meta.familyName.slice(1).toLowerCase()) : '';
             const imageUrl = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2025Drivers/${familyName}.png`;
             
             return (
@@ -312,7 +284,7 @@ const StandingsChart = ({ data, races, scale = 'rank' }) => {
           ]}
           tooltip={({ point }) => {
             const serie = point.serieId ? chartData.find(s => s.id === point.serieId) : null;
-            const familyName = serie?.meta?.familyName ? serie.meta.familyName.toLowerCase() : '';
+            const familyName = serie?.meta?.familyName ? (serie.meta.familyName.charAt(0).toUpperCase() + serie.meta.familyName.slice(1).toLowerCase()) : '';
             const imageUrl = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2025Drivers/${familyName}.png`;
             
             return (
