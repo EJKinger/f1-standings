@@ -20,8 +20,9 @@ const CustomTick = ({ x, y, value, raceName, country, onHover, onLeave }) => {
   );
 };
 
-const StandingsChart = ({ data, races, scale = 'rank' }) => {
+const StandingsChart = ({ data, races, scale = 'rank', useLogScale = false }) => {
   const [hoveredRace, setHoveredRace] = useState(null);
+  const [hoveredDriver, setHoveredDriver] = useState(null);
 
   if (!data || data.length === 0) return null;
 
@@ -77,8 +78,6 @@ const StandingsChart = ({ data, races, scale = 'rank' }) => {
     }
   };
 
-  const [hoveredDriver, setHoveredDriver] = useState(null);
-
   const HeadshotLayer = ({ series, xScale, yScale }) => {
     return series.map(serie => {
       const points = serie.data;
@@ -107,7 +106,8 @@ const StandingsChart = ({ data, races, scale = 'rank' }) => {
               fill: serie.color, 
               fontSize: '12px', 
               fontWeight: 'bold',
-              fontFamily: 'monospace'
+              fontFamily: 'monospace',
+              opacity: hoveredDriver && hoveredDriver.id !== serie.id ? 0.2 : 1
             }}
           >
             {serie.id}
@@ -123,10 +123,15 @@ const StandingsChart = ({ data, races, scale = 'rank' }) => {
       }
       
       // Driver Logic
-      // Fix casing for F1 media URLs (Title Case required: "Verstappen", not "verstappen")
+      // Use Firstname_Lastname format for F1 media URLs
       const familyName = serie.meta.familyName.charAt(0).toUpperCase() + serie.meta.familyName.slice(1).toLowerCase();
-      const imageUrl = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2025Drivers/${familyName}.png`;
-      const fallbackUrl = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2024Drivers/${familyName}.png`;
+      const givenName = serie.meta.givenName ? (serie.meta.givenName.charAt(0).toUpperCase() + serie.meta.givenName.slice(1).toLowerCase()) : '';
+      
+      // Try Firstname_Lastname first, then fallback to just Lastname
+      const nameSlug = givenName ? `${givenName}_${familyName}` : familyName;
+      
+      const imageUrl = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2025Drivers/${nameSlug}.png`;
+      const fallbackUrl = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2024Drivers/${nameSlug}.png`;
 
       const size = 40;
       const offset = 45;
@@ -153,8 +158,11 @@ const StandingsChart = ({ data, races, scale = 'rank' }) => {
           style={{ overflow: 'visible' }}
         >
           <div 
-            className="flex items-center gap-2 cursor-pointer" 
-            style={{ flexDirection: align === 'left' ? 'row' : 'row-reverse' }}
+            className="flex items-center gap-2 cursor-pointer transition-opacity duration-300" 
+            style={{ 
+              flexDirection: align === 'left' ? 'row' : 'row-reverse',
+              opacity: hoveredDriver && hoveredDriver.id !== serie.id ? 0.2 : 1
+            }}
             onMouseEnter={(e) => handleDriverHover(e, x, y, align)}
             onMouseLeave={() => setHoveredDriver(null)}
           >
@@ -167,7 +175,15 @@ const StandingsChart = ({ data, races, scale = 'rank' }) => {
                   src={imageUrl} 
                   alt={serie.id} 
                   className="w-full h-full object-cover"
-                  onError={(e) => e.target.src = fallbackUrl}
+                  onError={(e) => {
+                    // Try fallback to just Lastname if Firstname_Lastname fails
+                    if (e.target.src !== fallbackUrl) {
+                       e.target.src = fallbackUrl;
+                    } else {
+                       // If 2024 fallback also fails, try just family name for 2025
+                       e.target.src = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2025Drivers/${familyName}.png`;
+                    }
+                  }}
                 />
               </div>
             </div>
@@ -272,7 +288,9 @@ const StandingsChart = ({ data, races, scale = 'rank' }) => {
           ]}
           tooltip={({ serie }) => {
             const familyName = serie.meta?.familyName ? (serie.meta.familyName.charAt(0).toUpperCase() + serie.meta.familyName.slice(1).toLowerCase()) : '';
-            const imageUrl = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2025Drivers/${familyName}.png`;
+            const givenName = serie.meta?.givenName ? (serie.meta.givenName.charAt(0).toUpperCase() + serie.meta.givenName.slice(1).toLowerCase()) : '';
+            const nameSlug = givenName ? `${givenName}_${familyName}` : familyName;
+            const imageUrl = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2025Drivers/${nameSlug}.png`;
             
             return (
               <div className="bg-slate-900 p-3 border border-slate-700 rounded shadow-xl text-xs flex items-center gap-3">
@@ -283,7 +301,7 @@ const StandingsChart = ({ data, races, scale = 'rank' }) => {
                       alt={serie.id} 
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        e.target.src = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2024Drivers/${familyName}.png`;
+                        e.target.src = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2024Drivers/${nameSlug}.png`;
                       }}
                     />
                   </div>
@@ -316,6 +334,7 @@ const StandingsChart = ({ data, races, scale = 'rank' }) => {
           enableGridY={true}
           axisTop={null}
           axisRight={null}
+          yScale={useLogScale ? { type: 'symlog', min: 0 } : { type: 'linear', min: 0, max: 'auto' }}
           axisBottom={{
             tickSize: 0,
             tickPadding: 20,
@@ -346,6 +365,30 @@ const StandingsChart = ({ data, races, scale = 'rank' }) => {
             legendOffset: -40
           }}
           useMesh={true}
+          // Dimming logic for lines
+          colors={(serie) => {
+            if (hoveredDriver && hoveredDriver.id !== serie.id) {
+              return '#334155'; // Dimmed color (slate-700)
+            }
+            return serie.color; // Original color
+          }}
+          // Add mouse handlers to lines to trigger dimming
+          onMouseMove={(point, event) => {
+             // Note: onMouseMove in Nivo Line returns the point data
+             // We can try to set hovered driver from here if we want line hovering to trigger it
+             // But HeadshotLayer handles the main interaction.
+             // Let's see if we can get the series ID easily.
+             if (point && point.serieId) {
+                // Ideally we'd set hoveredDriver here too, but we need coordinates for the overlay
+                // For now, let's rely on the HeadshotLayer for the overlay, 
+                // but we can set a "light" hover state just for dimming if we wanted.
+                // However, the user specifically asked for "when I hover, it should dim".
+                // The HeadshotLayer hover sets 'hoveredDriver', which triggers the dimming in 'colors'.
+                // If we want the LINE to trigger it, we need to set hoveredDriver.
+                // But we don't have a good x/y for the overlay if we just hover the line.
+                // So let's stick to Headshot triggering for now as it's cleaner.
+             }
+          }}
           layers={[
             'grid', 'markers', 'axes', 'areas', 'crosshair', 'lines', 'points', 'slices', 'mesh', 'legends',
             HeadshotLayer
@@ -353,7 +396,9 @@ const StandingsChart = ({ data, races, scale = 'rank' }) => {
           tooltip={({ point }) => {
             const serie = point.serieId ? chartData.find(s => s.id === point.serieId) : null;
             const familyName = serie?.meta?.familyName ? (serie.meta.familyName.charAt(0).toUpperCase() + serie.meta.familyName.slice(1).toLowerCase()) : '';
-            const imageUrl = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2025Drivers/${familyName}.png`;
+            const givenName = serie?.meta?.givenName ? (serie.meta.givenName.charAt(0).toUpperCase() + serie.meta.givenName.slice(1).toLowerCase()) : '';
+            const nameSlug = givenName ? `${givenName}_${familyName}` : familyName;
+            const imageUrl = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2025Drivers/${nameSlug}.png`;
             
             return (
               <div className="bg-slate-900 p-3 border border-slate-700 rounded shadow-xl text-xs flex items-center gap-3">
@@ -364,7 +409,7 @@ const StandingsChart = ({ data, races, scale = 'rank' }) => {
                       alt={serie.id} 
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        e.target.src = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2024Drivers/${familyName}.png`;
+                        e.target.src = `https://media.formula1.com/image/upload/f_auto,c_limit,q_75,w_1320/content/dam/fom-website/drivers/2024Drivers/${nameSlug}.png`;
                       }}
                     />
                   </div>
